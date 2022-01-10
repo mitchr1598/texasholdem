@@ -21,4 +21,7 @@ setup(
     ],
     packages=["texasholdem"],
     python_requires=">=3.9.0",
+    install_requires=[
+          'playingcards1598',
+      ],
 )
