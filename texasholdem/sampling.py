@@ -1,6 +1,7 @@
 from collections import Counter
 import itertools
 from typing import Literal, Union
+from time import perf_counter
 
 import numpy as np
 import pandas as pd
@@ -113,6 +114,25 @@ def generate_every_turn():
     return c, list([texasholdem.Board.from_string(k) for k in c.keys()])
 
 
+def generate_every_turn_faster():
+    deck = texasholdem.TexasDeck()
+    flop_counter, all_flops = generate_every_flop()
+    boards = []
+    for flop in all_flops:
+        deck.reset()
+        deck.remove_cards(flop)
+        for card in deck:
+            if card in flop:
+                continue
+            if flop.tone == 1 and card.suit != flop.cards[0].suit:
+                card = playingcards.Card(card.rank, playingcards.Suit('d', '♦'))
+            elif flop.tone == 2 and card.suit not in flop.suits:
+                card = playingcards.Card(card.rank, playingcards.Suit('c', '♣'))
+            boards.extend([f'{flop.str_value()} {card.str_value()}'] * flop_counter[flop.str_value()])
+    c = Counter(boards)
+    return c, list([texasholdem.Board.from_string(k) for k in c.keys()])
+
+
 def generate_every_river():
     deck = texasholdem.TexasDeck()
     turn_counter, all_turns = generate_every_turn()
@@ -135,5 +155,13 @@ def generate_every_river():
     return c, list([texasholdem.Board.from_string(k) for k in c.keys()])
 
 
-print(generate_every_turn() == generate_every_turn_faster())
+if __name__ == '__main__':
+    t0 = perf_counter()
+    gt1 = generate_every_turn()
+    t1 = perf_counter()
+    gt2 = generate_every_turn_faster()
+    t2 = perf_counter()
+    print(f'gt1: {t1 - t0}')
+    print(f'gt2: {t2 - t1}')
+    print(gt1 == gt2)
 
