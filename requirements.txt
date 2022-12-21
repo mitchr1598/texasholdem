@@ -1,3 +1,4 @@
 setuptools
 playingcards1598>=1.0.9
 numpy
+pandas
