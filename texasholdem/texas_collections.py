@@ -23,6 +23,12 @@ class PokerCollection(CardCollection):
         return len(set([card.suit for card in self.cards]))
 
     @property
+    def n_to_flush(self) -> int:
+        """ How many in collection to a flush.
+        Counts the number occurences of the most frequent suit """
+        return Counter([card.suit for card in self.cards]).most_common(1)[0][1]
+
+    @property
     def paired(self) -> bool:
         return 2 in Counter([c.rank for c in self.cards]).values()
 
