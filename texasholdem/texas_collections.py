@@ -91,10 +91,26 @@ class Turn(PokerCollection):
     def __init__(self, cards: Union[Card, list[Card]], ordered=True):
         super().__init__(cards if isinstance(cards, list) else [cards], maximum=1, ordered=ordered)
 
+    @property
+    def rank(self):
+        return self.rankings[0]
+
+    @property
+    def suit(self):
+        return self.suits[0]
+
 
 class River(PokerCollection):
     def __init__(self, cards: Union[Card, list[Card]], ordered=True):
         super().__init__(cards if isinstance(cards, list) else [cards], maximum=1, ordered=ordered)
+
+    @property
+    def rank(self):
+        return self.rankings[0]
+
+    @property
+    def suit(self):
+        return self.suits[0]
 
 
 class Board(PokerCollection):
