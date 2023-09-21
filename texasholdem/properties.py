@@ -132,9 +132,6 @@ class TexasHandProperties:
         return self._straight_value
 
 
-
-
-
 def _straight_value(ranks: list[playingcards.Rank]):  # I have test cases for these in "Python Plays/poker_property_testing"
     """ Returns the straight value of the ranks given, returns 0 if no straight """
     # It does this by "preparing" the ranks given, and then using dynamic programming
@@ -178,68 +175,3 @@ def main():
 if __name__ == '__main__':
     main()
 
-
-
-'''
-Scratching all this shit. Simple is better, don't over-engineer
-
-class SinglePropertyCaseBase(ABC):
-    """ An abstract base class to determine if the properties are true for the player and the board """
-
-    @property
-    @abstractmethod
-    def to_player(self) -> bool:
-        pass
-
-    @property
-    @abstractmethod
-    def to_board(self) -> bool:
-        pass
-
-
-@dataclass
-class SinglePropertyHelpers:
-    hand: texas_collections.TexasHand
-    board: texas_collections.Board
-
-    @property
-    def all_cards(self):
-        return self.hand + self.board
-
-    def to_player(self):
-        raise NotImplemented(f"This method is not implemented for {self.__class__.__name__}")
-
-
-class FlushChecker(SinglePropertyCaseBase, SinglePropertyHelpers):  # Can't take HandProperties as input, to avoid circular reference
-    @property
-    def to_player(self) -> bool:
-        hr = self.hand.rankings  # hand rankings
-        br = sorted(self.board.rankings)  # board rankings
-        return br
-    
-    @property
-    def to_board(self) -> bool:
-        
-
-
-@dataclass(frozen=True)
-class StraightChecker:
-    hand: game.TexasHand
-    board: game.Board
-
-    @property
-    def all_cards(self):
-        return self.hand + self.board
-
-    @property
-    def two_card_straight(self) -> bool:
-        hr = self.hand.rankings  # hand rankings
-        br = sorted(self.board.rankings)  # board rankings
-        return br
-
-    @property
-    def any_straight(self) -> bool:
-        """Straight present, even if playing the board"""
-
-
-'''

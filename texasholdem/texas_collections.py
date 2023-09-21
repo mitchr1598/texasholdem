@@ -74,7 +74,7 @@ class Flop(PokerCollection):
     def __init__(self, cards: list[Card], ordered=True, **kwargs):
         super().__init__(cards, ordered=ordered, maximum=3)
 
-    def _order_cards(self):
+    def order_cards(self):
         if self.ordered:
             self.cards.sort(reverse=self.reverse_order)
             if self.paired and (self.cards[0].rank == self.cards[1].rank):  # Top card paired

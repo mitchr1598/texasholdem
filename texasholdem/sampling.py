@@ -8,6 +8,7 @@ import os
 
 import numpy as np
 import pandas as pd
+from playingcards import CardCollection
 from tqdm import tqdm
 from sqlalchemy import create_engine
 from urllib.parse import quote_plus
@@ -17,8 +18,6 @@ import playingcards
 
 from texasholdem import texas_collections
 
-
-ENGINE = create_engine(f'postgresql+psycopg2://postgres:{os.environ.get("PGDB_LOCAL_USER_PASSWORD")}@localhost/pokersolver')
 
 ABSOLUTE_PATH = os.path.dirname(os.path.abspath(__file__))
 
@@ -32,7 +31,6 @@ _SUIT_ORDER = (
 
 
 class BoardSample:
-    # TODO: Super slow as it generates every possible board for the given street
     def __init__(self, n: int, street: Literal['flop', 'turn', 'river']):
         """
         Sample a number of boards from the given street.
@@ -118,89 +116,15 @@ class BoardSample:
             return [b[len(sub_board):] for b in matches]
 
     def _generate_sample(self) -> pd.DataFrame:
-        df = sample_street(self.street, self.n, 'df')
-        if self.street == 'flop':
-            df['board'] = df['flop']
-        elif self.street == 'turn':
-            df['board'] = df['flop'] + '' + df['turn']
-        elif self.street == 'river':
-            df['board'] = df['flop'] + '' + df['turn'] + '' + df['river']
-        df.set_index('board', inplace=True)
-        df.index.name = 'board'
-        return df[['count']]
+        return sample_street(self.street, self.n, 'df')
 
 
 class EmptyDataFrameError(Exception):
     pass
 
+
 class NoPickleError(Exception):
     pass
-
-
-def generate_every_flop() -> (Counter[str], list[texasholdem.Flop]):
-    try:
-        print('Attempting to load flops from database')
-        df = load_counts_from_db('flop')
-        if df.empty:
-            raise EmptyDataFrameError("Connection succeeded, but returned empty dataframe")
-        c = counter_df_to_counter(df, key_cols=['flop'], count_col='weight')
-        returning = c, [texasholdem.Flop.from_string(f) for f in c.keys()]
-        print('Successfully loaded flops from database')
-    except EmptyDataFrameError:  # TODO: Also catch connection errors
-        print('Failed to load flops from database')
-        try:
-            returning = load_street_from_pickle()
-            print('Successfully loaded flops from pickle')
-        except NoPickleError:
-            print('Failed to load flops from pickle')
-            returning = regenerate_every_flop()
-            print('Successfully regenerated flops')
-
-    return returning
-
-
-def generate_every_turn() -> (Counter[str], list[texasholdem.Turn]):
-    try:
-        print('Attempting to load turns from database')
-        df = load_counts_from_db('turn')
-        if df.empty:
-            raise EmptyDataFrameError("Connection succeeded, but returned empty dataframe")
-        c = counter_df_to_counter(df, key_cols=['flop', 'turn'], count_col='weight')
-        returning = c, [texasholdem.Board.from_string(t) for t in c.keys()]
-        print('Successfully loaded turns from database')
-    except EmptyDataFrameError:  # TODO: Also catch connection errors
-        print('Failed to load turns from database')
-        try:
-            returning = load_street_from_pickle('turn')
-            print('Successfully loaded turns from pickle')
-        except NoPickleError:
-            print('Failed to load turns from pickle')
-            returning = regenerate_every_turn()
-            print('Successfully regenerated turns')
-
-    return returning
-
-
-def generate_every_river() -> (Counter[str], list[texasholdem.River]):
-    try:
-        print('Attempting to load rivers from database')
-        df = load_counts_from_db('river')
-        if df.empty:
-            raise EmptyDataFrameError("Connection succeeded, but returned empty dataframe")
-        c = counter_df_to_counter(df, key_cols=['flop', 'turn', 'river'], count_col='weight')
-        returning = c, [texasholdem.Board.from_string(r) for r in c.keys()]
-        print('Successfully loaded rivers from database')
-    except EmptyDataFrameError:  # TODO: Also catch connection errors
-        print('Failed to load rivers from database')
-        try:
-            returning = load_street_from_pickle('river')
-            print('Successfully loaded rivers from pickle')
-        except NoPickleError:
-            print('Failed to load rivers from pickle')
-            returning = regenerate_every_river()
-            print('Successfully regenerated rivers')
-
-    return returning
 
 
 def sample_street(street: Literal['flop', 'turn', 'river'],
@@ -214,28 +138,48 @@ def sample_street(street: Literal['flop', 'turn', 'river'],
     :param as_type: The type to return. Either 'Counter' or 'df'
     :return: Either a Counter or a DataFrame, depending on as_type. DataFrame will have columns 'count', 'flop'(, 'turn', 'river')
     """
-    sampling_fn = f'sample_{street}s' if n < 100000 else f'sample_{street}s_large'
-    print(f'Attempting to sample {n} {street}s from database')
-    df = pd.read_sql(f'select * from {sampling_fn} ({n})', ENGINE)
-    print(f'Successfully sampled {n} {street}s from database')
+    deck = texas_collections.TexasDeck()
+    cards_in_sample = {'flop': 3, 'turn': 4, 'river': 5}[street]
+
+    raw_samples = set()
+    sample = []
+    samples_done = 0
+    while samples_done < n:
+        deck.reset()
+        deck.shuffle()
+        flop = deck.draw_top_n(3)
+        flop.ordered = True
+        flop.reverse_order = True
+        flop.order_cards()
+
+        runnout = deck.draw_top_n(cards_in_sample - 3) if cards_in_sample > 3 else CardCollection()
+        runnout_str = runnout.str_value(no_space=True) if cards_in_sample > 3 else ''
+        raw_sample = flop.str_value(no_space=True) + runnout_str
+        if raw_sample in raw_samples:
+            continue
+        raw_samples.add(raw_sample)
+
+        board = flop + runnout
+        suit_mapping = board.normalize_suit_mapping(_SUIT_ORDER)
+        board = board.change_suits(suit_mapping)
+        new_sample = board.str_value(no_space=True)
+        sample.append(new_sample)
+        samples_done += 1
+    counter = Counter(sample)
     if as_type == 'df':
-        return df
-    key_cols = {'flop': 'flop', 'turn': ['flop', 'turn'], 'river': ['flop', 'turn', 'river']}[street]
-    return counter_df_to_counter(df, key_cols=key_cols, count_col='count')
+        return counter_to_df(counter, street)
 
 
-def load_counts_from_db(street: Literal['flop', 'turn', 'river']) -> pd.DataFrame:
-    return pd.read_sql_table(f'strategic_{street}s_weights', ENGINE, schema='poker')
-
-
-def load_street_from_pickle(street: Literal['flop', 'turn', 'river']) -> (Counter[str], list[texasholdem.Flop]):
-    path = ABSOLUTE_PATH + f"/caching/generate_every_{street}.bin"
-    if os.path.exists(path):
-        with open(path, "rb") as f:  # "rb" because we want to read in binary mode
-            loaded = pickle.load(f)
-        return loaded
-    else:
-        raise NoPickleError(f'There is not pickle at "{path}"')
+def counter_to_df(counter: Counter, street: Literal['flop', 'turn', 'river']) -> pd.DataFrame:
+    """
+    Converts a Counter to a DataFrame. The Counter keys are the index, and the Counter values are the 'count' column.
+    :param counter: The Counter to convert.
+    :param street: The street of the Counter.
+    :return: A DataFrame.
+    """
+    df = pd.DataFrame.from_dict(counter, orient='index', columns=['count'])
+    df.index.name = street
+    return df
 
 
 def counter_df_to_counter(df: pd.DataFrame, key_cols: Union[str, list, None] = None, count_col=None) -> Counter[str]:
@@ -263,63 +207,11 @@ def counter_df_to_counter(df: pd.DataFrame, key_cols: Union[str, list, None] = N
     return Counter(df.to_dict()[count_col])
 
 
-def regenerate_every_flop():
-    deck = texasholdem.TexasDeck()
-    gen = itertools.combinations(deck, 3)
-    flop = [texasholdem.Flop(list(f)) for f in gen]
-    norm_flop = [f.normalize_suits(_SUIT_ORDER).str_value() for f in flop]
-    c = Counter(norm_flop)
-    return c, [texasholdem.Flop.from_string(f) for f in c.keys()]
-
-
-def regenerate_every_turn():
-    deck = texasholdem.TexasDeck()
-    flop_counter, all_flops = generate_every_flop()
-    boards = []
-    for flop in all_flops:
-        deck.reset()
-        deck.remove_cards(flop)
-        for card in deck:
-            if card in flop:
-                continue
-            if flop.tone == 1 and card.suit != flop.cards[0].suit:
-                card = playingcards.Card(card.rank, playingcards.Suit('d', '♦'))
-            elif flop.tone == 2 and card.suit not in flop.suits:
-                card = playingcards.Card(card.rank, playingcards.Suit('c', '♣'))
-            for _ in range(flop_counter[flop.str_value()]):
-                boards.append(f'{flop.str_value()} {card.str_value()}')
-    c = Counter(boards)
-    returning = c, list([texasholdem.Board.from_string(k) for k in c.keys()])
-    return returning
-
-
-def regenerate_every_river():
-    deck = texasholdem.TexasDeck()
-    turn_counter, all_turns = generate_every_turn()
-    boards = []
-    for turn in tqdm(all_turns):
-        deck.reset()
-        deck.remove_cards(turn)
-        for card in deck:
-            if card in turn:
-                continue
-            if turn.tone == 1 and card.suit != turn.cards[0].suit:
-                card = playingcards.Card(card.rank, playingcards.Suit('d', '♦'))
-            elif turn.tone == 2 and card.suit not in turn.suits:
-                card = playingcards.Card(card.rank, playingcards.Suit('c', '♣'))
-            elif turn.tone == 3 and card.suit not in turn.suits:
-                card = playingcards.Card(card.rank, playingcards.Suit('h', '♥'))
-            for _ in range(turn_counter[turn.str_value()]):
-                boards.append(f'{turn.str_value()} {card.str_value()}')
-    c = Counter(boards)
-    returning = c, list([texasholdem.Board.from_string(k) for k in c.keys()])
-    return returning
-
-
 if __name__ == '__main__':
     t0 = time.perf_counter()
-    v = BoardSample(10000, 'flop')
+    v = BoardSample(10800, 'river')
     t1 = time.perf_counter()
-    print(f'Generated {sum(v.values())} boards ({len(v)} unique) in {t1 - t0:.2f} seconds')
+    print(f'Generated {v.n} boards ({len(v.boards)} unique) in {t1 - t0:.2f} seconds')
+    print(v.to_dataframe.sort_values('count', ascending=False).head(10))
     print()
 
