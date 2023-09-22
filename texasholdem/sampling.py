@@ -136,7 +136,7 @@ def sample_street(street: Literal['flop', 'turn', 'river'],
     :param street: The street to sample from. Must be 'flop', 'turn', or 'river'
     :param n: The number of samples to take without replacement
     :param as_type: The type to return. Either 'Counter' or 'df'
-    :return: Either a Counter or a DataFrame, depending on as_type. DataFrame will have columns 'count', 'flop'(, 'turn', 'river')
+    :return: Either a Counter or a DataFrame, depending on as_type. DataFrame will have columns 'count', 'board'
     """
     deck = texas_collections.TexasDeck()
     cards_in_sample = {'flop': 3, 'turn': 4, 'river': 5}[street]
@@ -167,18 +167,17 @@ def sample_street(street: Literal['flop', 'turn', 'river'],
         samples_done += 1
     counter = Counter(sample)
     if as_type == 'df':
-        return counter_to_df(counter, street)
+        return counter_to_df(counter)
 
 
-def counter_to_df(counter: Counter, street: Literal['flop', 'turn', 'river']) -> pd.DataFrame:
+def counter_to_df(counter: Counter) -> pd.DataFrame:
     """
     Converts a Counter to a DataFrame. The Counter keys are the index, and the Counter values are the 'count' column.
     :param counter: The Counter to convert.
-    :param street: The street of the Counter.
     :return: A DataFrame.
     """
     df = pd.DataFrame.from_dict(counter, orient='index', columns=['count'])
-    df.index.name = street
+    df.index.name = 'board'
     return df
 
 
