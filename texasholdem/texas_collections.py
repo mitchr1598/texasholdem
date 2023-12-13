@@ -11,8 +11,8 @@ class PokerCollection(CardCollection):
     """
     A wrapper for CardCollection. Introduces properties important to poker
     """
-    def __init__(self, cards, maximum, ordered=False):
-        super().__init__(cards, maximum, ordered=ordered, reverse_order=True)
+    def __init__(self, cards, maximum=None, ordered=False):
+        super().__init__(cards, maximum=None, ordered=ordered, reverse_order=True)
         self._quads = []
         self._trips = []
         self._pairs = []
@@ -52,6 +52,10 @@ class PokerCollection(CardCollection):
         if not self._qtp_found:
             self._qtp()
         return self._pairs
+
+    def sort_by_qtp(self):
+        """ Returns a sort of the cards by quads, trips, pairs, then kickers """
+        return sorted(self.cards, key=lambda card: (card.rank not in self.quads, card.rank not in self.trips, card.rank not in self.pairs, card.rank), reverse=True)
 
     def _qtp(self):
         """ Finds the quads, trips and pairs in one pass """

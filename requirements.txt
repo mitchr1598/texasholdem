@@ -7,12 +7,12 @@ greenlet==2.0.1
 idna==3.3
 importlib-metadata==4.10.0
 keyring==23.5.0
-numpy==1.22.0
+numpy==1.26.1
 packaging==21.3
 pandas==1.5.1
 pkginfo==1.8.2
 playingcards1598
-psycopg2==2.9.5
+psycopg2-binary
 Pygments==2.11.2
 pyparsing==3.0.6
 python-dateutil==2.8.2

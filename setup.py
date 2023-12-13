@@ -1,6 +1,9 @@
 import pathlib
 from setuptools import setup
 
+# python setup.py sdist
+# twine upload dist/*
+
 # The directory containing this file
 HERE = pathlib.Path(__file__).parent
 
@@ -9,7 +12,7 @@ README = (HERE / "README.md").read_text()
 
 setup(
     name="texasholdem1598",
-    version="1.0.7",
+    version="1.0.8",
     description="A package for playing texas holdem poker",
     long_description=README,
     long_description_content_type="text/markdown",
