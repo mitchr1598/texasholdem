@@ -82,13 +82,19 @@ class PokerCollection(CardCollection):
 
 
 class TexasHand(PokerCollection):
-    def __init__(self, cards: list[Card], ordered=True):
-        super().__init__(cards, maximum=2, ordered=ordered)
+    def __init__(self, cards: list[Card], maximum=2, ordered=True, reverse_order=True):
+        if maximum != 2:
+            raise ValueError(f"TexasHand is expected to have maximum of 2 cards, not {maximum}")
+        if not ordered:
+            raise ValueError("TexasHand is typically ordered")
+        super().__init__(cards, maximum=maximum, ordered=ordered, reverse_order=reverse_order)
 
 
 class Flop(PokerCollection):
-    def __init__(self, cards: list[Card], ordered=True, **kwargs):
-        super().__init__(cards, ordered=ordered, maximum=3)
+    def __init__(self, cards: list[Card], maximum=3, ordered=False, reverse_order=True):
+        if maximum != 3:
+            raise ValueError(f"Flop is expected to have maximum of 3 cards, not {maximum}")
+        super().__init__(cards, maximum=maximum, ordered=ordered, reverse_order=reverse_order)
 
     def order_cards(self):
         if self.ordered:
