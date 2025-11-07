@@ -11,11 +11,14 @@ class PokerCollection(CardCollection):
     """
     A wrapper for CardCollection. Introduces properties important to poker
     """
-    def __init__(self, cards, maximum=None, ordered=False):
-        super().__init__(cards, maximum=None, ordered=ordered, reverse_order=True)
+    def __init__(self, cards, maximum=None, ordered=False, reverse_order=True):
+        if not reverse_order:
+            raise ValueError("PokerCollection is typically in reverse order")
+        super().__init__(cards, maximum=maximum, ordered=ordered, reverse_order=True)
         self._quads = []
         self._trips = []
         self._pairs = []
+        self._singles = []
         self._qtp_found = False  # Flag for lazy loading of quads, trips, and pairs
 
     @property
@@ -34,24 +37,31 @@ class PokerCollection(CardCollection):
 
     @property
     def quads(self) -> list[playingcards.Rank]:
-        """ Returns a list of rankings for all instances of quads """
+        """ Returns a list of rankings for all instances of quads. One rank per quads. """
         if not self._qtp_found:
             self._qtp()
         return self._quads
 
     @property
     def trips(self) -> list[playingcards.Rank]:
-        """ Returns a list of rankings for all instances of trips """
+        """ Returns a list of rankings for all instances of trips. One rank per trips. """
         if not self._qtp_found:
             self._qtp()
         return self._trips
 
     @property
     def pairs(self) -> list[playingcards.Rank]:
-        """ Returns a list of rankings for all instances of pairs """
+        """ Returns a list of rankings for all instances of pairs. One rank per pair. """
         if not self._qtp_found:
             self._qtp()
         return self._pairs
+
+    @property
+    def singles(self) -> list[playingcards.Rank]:
+        """ Returns a list of rankings for all instances of singular cards (not pairs, trips etc.). One rank per pair. """
+        if not self._qtp_found:
+            self._qtp()
+        return self._singles
 
     def sort_by_qtp(self):
         """ Returns a sort of the cards by quads, trips, pairs, then kickers """
@@ -66,6 +76,8 @@ class PokerCollection(CardCollection):
                 self._trips.append(rank)
             elif count == 2:
                 self._pairs.append(rank)
+            elif count == 1:
+                self._singles.append(rank)
         self._qtp_found = True
 
 
@@ -118,8 +130,12 @@ class River(PokerCollection):
 
 
 class Board(PokerCollection):
-    def __init__(self, cards: list[Card]):
-        super().__init__(cards, maximum=5)
+    def __init__(self, cards: list[Card], maximum=5, ordered=False, reverse_order=True):
+        if maximum != 5:
+            raise ValueError(f"Board is expected to have maximum of 5 cards, not {maximum}")
+        if not reverse_order:
+            raise ValueError("Board is typically in reverse order")
+        super().__init__(cards, maximum=5, ordered=ordered, reverse_order=True)
         self.cards = Flop(self.cards[:3]).cards + self.cards[3:]  # Sorting the flop
 
     @property

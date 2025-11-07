@@ -142,3 +142,7 @@ cython_debug/
 
 # MacOS system files
 .DS_Store
+
+.idea
+texasholdem/caching
+
